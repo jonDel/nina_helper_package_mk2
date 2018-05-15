@@ -101,7 +101,7 @@ one_hot_categorical = to_categorical(y_all)
 
 Similarly the code is virtually identical if you wish to work with database 2 instead:
 
-```
+```python
 from nina_helper import *
 import numpy as np
 
@@ -143,7 +143,7 @@ one_hot_categorical = to_categorical(y_all)
 
 And if you wish to work with database 3:
 
-```
+```python
 from nina_helper import *
 
 db3_path = "path/to/db3"
