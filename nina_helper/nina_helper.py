@@ -127,7 +127,81 @@ def db2_info():
             'ages': ages,
             'heights': heights,
             'weights': weights,
-            }
+           }
+
+
+def db3_info():
+    """Return relevant info on database 3.
+
+    Returns:
+        Dict: Useful information on database 3
+    """
+    # General Info
+    nb_subjects = 11
+    nb_reps = 6
+    fs = 2000
+    majority_nb_moves = 50
+    # General data
+    gen_dict = {
+        'nb_channels': 12,
+        'nb_moves': majority_nb_moves,
+        'move_labels': np.array(range(1, majority_nb_moves+1))
+    }
+    subjects_data = [gen_dict]*nb_subjects
+    # Specific electrodes used:
+    for subs in [6, 7]:
+        subjects_data[subs]['nb_channels'] = 10
+    # Specific movements used
+    subjects_data[0]['nb_moves'] = 40
+    subjects_data[0]['move_labels'] = np.array(range(1, 41))
+    subjects_data[2]['nb_moves'] = 49
+    subjects_data[2]['move_labels'] = np.array(range(1, 50))
+    subjects_data[9]['nb_moves'] = 43
+    subjects_data[9]['move_labels'] = np.array(range(1, 44))
+    # Labels
+    rep_labels = np.array(range(1, nb_reps + 1))
+    # Handedness
+    left_handed = np.array([4])
+    right_handed = np.array([0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11])
+    # Amputated hand
+    left_hand_amp = left_handed
+    right_hand_amp = right_handed
+    # Other Info (synced)
+    ages = np.array([32, 35, 0, 34, 67, 32, 35, 33, 44, 59, 45])
+    heights = np.array([172, 183, 178, 166, 175, 172, 185, 175, 180, 177, 183])
+    weights = np.array([86, 81, 82, 68, 75, 66, 75, 80, 95, 86, 75])
+    rem_forearm = np.array([50, 70, 30, 40, 90, 40, 0, 50, 90, 50, 90])
+    years_after_amp = np.array([13, 6, 5, 1, 1, 13, 7, 5, 14, 2, 5])
+    amp_type = ["Accident"]*(nb_subjects-1)
+    amp_type.append("Cancer")
+    phant_limb_sens = np.array([2, 5, 2, 1, 2, 4, 0, 2, 5, 5, 4])
+    dash_score = np.array([1.67, 15.18, 22.5, 86.67, 11.67, 37.5, 31.67, 33.33, 3.33, 11.76, 12.5])
+    cosm_use = np.array([0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    kinem_use = np.array([0, 0, 8, 0, 0.4, 12, 0, 0, 0, 1.66, 5])
+    myo_use = np.array([13, 0, 8, 0, 0, 0, 6, 4, 14, 0, 5])
+
+    return {
+        'subjects': subjects_data,
+        'nb_subjects': nb_subjects,
+        'nb_reps': nb_reps,
+        'fs': fs,
+        'rep_labels': rep_labels,
+        'left_handed': left_handed,
+        'right_handed': right_handed,
+        'left_handed_amp': left_hand_amp,
+        'right_handed_amp': right_hand_amp,
+        'ages': ages,
+        'heights': heights,
+        'weights': weights,
+        'rem_forearm': rem_forearm,
+        'years_after_amp': years_after_amp,
+        'amp_type': amp_type,
+        'phant_limb_sens': phant_limb_sens,
+        'dash_score': dash_score,
+        'cosm_use': cosm_use,
+        'kinem_use': kinem_use,
+        'myo_use': myo_use
+    }
 
 
 def import_db1(folder_path, subject, rest_length_cap=999):
@@ -485,6 +559,92 @@ def import_db2_unrefined(folder_path, subject, rest_length_cap=999):
             'nb_capped': nb_capped
             }
 
+def import_db3(folder_path, subject, rest_length_cap=999):
+    """Function for extracting data from raw NinaiPro files for DB3.
+
+    Args:
+        folder_path (string): Path to folder containing raw mat files
+        subject (int): 1-11 which subject's data to import
+        rest_length_cap (int, optional): The number of seconds of rest data to keep before/after a movement
+
+    Returns:
+        Dictionary: Raw EMG data, corresponding repetition and movement labels, indices of where repetitions are
+            demarked and the number of repetitions with capped off rest data
+
+    Note:
+        Last 9 "movements" are actually force exercises
+    """
+    fs = 2000
+
+    cur_path = os.path.normpath(folder_path + '/S' + str(subject) + '_E1_A1.mat')
+    data = sio.loadmat(cur_path)
+    emg = np.squeeze(np.array(data['emg']))
+    rep = np.squeeze(np.array(data['rerepetition']))
+    move = np.squeeze(np.array(data['restimulus']))
+
+    cur_path = os.path.normpath(folder_path + '/S' + str(subject) + '_E2_A1.mat')
+    data = sio.loadmat(cur_path)
+    emg = np.vstack((emg, np.array(data['emg'])))
+    rep = np.append(rep, np.squeeze(np.array(data['rerepetition'])))
+    move_tmp = np.squeeze(np.array(data['restimulus']))  # Fix for numbering
+    move_tmp[move_tmp != 0] += max(move)
+    move = np.append(move, move_tmp)
+
+    cur_path = os.path.normpath(folder_path + '/S' + str(subject) + '_E3_A1.mat')
+    data = sio.loadmat(cur_path)
+    emg = np.vstack((emg, np.array(data['emg'])))
+    rep = np.append(rep, np.squeeze(np.array(data['rerepetition'])))
+    move_tmp = np.squeeze(np.array(data['restimulus']))  # Fix for numbering
+    move_tmp[move_tmp != 0] += max(move)
+    move = np.append(move, move_tmp)
+
+    move = move.astype('int8')  # To minimise overhead
+
+    # Label repetitions using new block style: rest-move-rest regions
+    move_regions = np.where(np.diff(move))[0]
+    rep_regions = np.zeros((move_regions.shape[0],), dtype=int)
+    nb_reps = int(round(move_regions.shape[0] / 2))
+    last_end_idx = int(round(move_regions[0] / 2))
+    nb_unique_reps = np.unique(rep).shape[0] - 1  # To account for 0 regions
+    nb_capped = 0
+    cur_rep = 1
+
+    rep = np.zeros([rep.shape[0], ], dtype=np.int8)  # Reset rep array
+    for i in range(nb_reps - 1):
+        rep_regions[2 * i] = last_end_idx
+        midpoint_idx = int(round((move_regions[2 * (i + 1) - 1] +
+                                  move_regions[2 * (i + 1)]) / 2)) + 1
+
+        trailing_rest_samps = midpoint_idx - move_regions[2 * (i + 1) - 1]
+        if trailing_rest_samps <= rest_length_cap * fs:
+            rep[last_end_idx:midpoint_idx] = cur_rep
+            last_end_idx = midpoint_idx
+            rep_regions[2 * i + 1] = midpoint_idx - 1
+
+        else:
+            rep_end_idx = (move_regions[2 * (i + 1) - 1] +
+                           int(round(rest_length_cap * fs)))
+            rep[last_end_idx:rep_end_idx] = cur_rep
+            last_end_idx = ((move_regions[2 * (i + 1)] -
+                             int(round(rest_length_cap * fs))))
+            rep_regions[2 * i + 1] = rep_end_idx - 1
+            nb_capped += 2
+
+        cur_rep += 1
+        if cur_rep > nb_unique_reps:
+            cur_rep = 1
+
+    end_idx = int(round((emg.shape[0] + move_regions[-1]) / 2))
+    rep[last_end_idx:end_idx] = cur_rep
+    rep_regions[-2] = last_end_idx
+    rep_regions[-1] = end_idx - 1
+
+    return {'emg': emg,
+            'rep': rep,
+            'move': move,
+            'rep_regions': rep_regions,
+            'nb_capped': nb_capped
+            }
 
 def import_db2_acc(folder_path, subject):
     """Function for extracting acceleronmeter data from raw NinaiPro files for DB2.

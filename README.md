@@ -1,5 +1,5 @@
 # NINAPRO Utilities
-Functions for helping work with NINAPRO databases 1 and 2.
+Functions for helping work with NINAPRO databases 1, 2 and 3.
 
 Get:
 * Raw EMG
@@ -7,7 +7,7 @@ Get:
     * Get Windows
 * Refined movement labels
 * Refined repetition labels
-* Accelerometer data (DB2 only, seperate function for memory usage reduction)
+* Accelerometer data (DB2 and DB3 only, separate function for memory usage reduction)
 
 Relevant data also included:
 * Number of subjects in database
@@ -50,6 +50,11 @@ or
 ```python
 # subject_nb: 1-40
 data_dict = nina_helper.import_db2(db2_path, subject_nb)
+```
+or
+```python
+# subject_nb: 1-11
+data_dict = nina_helper.import_db3(db2_path, subject_nb)
 ```
 
 A typical workflow to go from raw data to normalised and windowed data ready for use in your favourite machine learning library may look like ths:
@@ -132,6 +137,47 @@ x_all, y_all, r_all = get_windows(reps, window_len, window_inc,
 
 test_idx = get_idxs(r_all, test_reps[0, :])
 test_data = x_all[test_idx, :, :, :]
+
+one_hot_categorical = to_categorical(y_all)
+```
+
+And if you wish to work with database 3:
+
+```
+from nina_helper import *
+
+db3_path = "path/to/db3"
+
+# Decide window length (150ms window, 10ms increment)
+window_len = 300  # x20 window length since sampled 20 times faster than db1
+window_inc = 20
+
+# Choose subject and get info
+subject = 2
+info_dict = db3_info()  # Get info
+
+# Get EMG, repetition and movement data, don't cap maximum length of rest
+data_dict = nina_helper.import_db3(db3_path, subject)
+
+# Create a balanced test - training split based on repetition number
+reps = info_dict['rep_labels']
+nb_test_reps = 3
+train_reps, test_reps = gen_split_balanced(reps, nb_test_reps)
+
+# Normalise EMG data based on training set
+emg_data = normalise_emg(data_dict['emg'], data_dict['rep'], train_reps[0, :])
+
+# Window data: x_all data is 4D tensor [observation, time_step, channel, 1] for use with Keras
+# y_all: movement label, length: number of windows
+# r_all: repetition label, length: number of windows
+moves = np.array([2, 5, 12, 32])
+x_all, y_all, r_all = get_windows(reps, window_len, window_inc,
+                                  emg_data, data_dict['move'],
+                                  data_dict['rep'],
+                                  which_moves=moves)
+
+train_idx = get_idxs(r_all, train_reps[0, :])
+train_data = x_all[train_idx, :, :, :]
 
 one_hot_categorical = to_categorical(y_all)
 ```
