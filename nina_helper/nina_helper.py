@@ -5,6 +5,7 @@ import numpy as np
 import scipy.io as sio
 from sklearn.preprocessing import StandardScaler
 from itertools import combinations, chain
+from copy import copy
 
 
 def db1_info():
@@ -127,7 +128,7 @@ def db2_info():
             'ages': ages,
             'heights': heights,
             'weights': weights,
-           }
+    }
 
 
 def db3_info():
@@ -147,7 +148,9 @@ def db3_info():
         'nb_moves': majority_nb_moves,
         'move_labels': np.array(range(1, majority_nb_moves+1))
     }
-    subjects_data = [gen_dict]*nb_subjects
+    subjects_data = []
+    for subs in range(nb_subjects):
+        subjects_data.append(copy(gen_dict))
     # Specific electrodes used:
     for subs in [6, 7]:
         subjects_data[subs]['nb_channels'] = 10
@@ -586,18 +589,25 @@ def import_db3(folder_path, subject, rest_length_cap=999):
     data = sio.loadmat(cur_path)
     emg = np.vstack((emg, np.array(data['emg'])))
     rep = np.append(rep, np.squeeze(np.array(data['rerepetition'])))
-    move_tmp = np.squeeze(np.array(data['restimulus']))  # Fix for numbering
-    move_tmp[move_tmp != 0] += max(move)
-    move = np.append(move, move_tmp)
+    move_tmp = np.squeeze(np.array(data['restimulus']))
+    move = np.append(move, move_tmp)  # Note no fix needed for this exercise
+    last_mov = max(move)
 
     cur_path = os.path.normpath(folder_path + '/S' + str(subject) + '_E3_A1.mat')
     data = sio.loadmat(cur_path)
     emg = np.vstack((emg, np.array(data['emg'])))
     rep = np.append(rep, np.squeeze(np.array(data['rerepetition'])))
-    move_tmp = np.squeeze(np.array(data['restimulus']))  # Fix for numbering
-    move_tmp[move_tmp != 0] += max(move)
-    move = np.append(move, move_tmp)
-
+    data['restimulus'][np.where(data['restimulus'] == 1)] = last_mov + 1
+    data['restimulus'][np.where(data['restimulus'] == 2)] = last_mov + 2
+    data['restimulus'][np.where(data['restimulus'] == 4)] = last_mov + 3
+    data['restimulus'][np.where(data['restimulus'] == 6)] = last_mov + 4
+    data['restimulus'][np.where(data['restimulus'] == 8)] = last_mov + 5
+    data['restimulus'][np.where(data['restimulus'] == 9)] = last_mov + 6
+    data['restimulus'][np.where(data['restimulus'] == 16)] = last_mov + 7
+    data['restimulus'][np.where(data['restimulus'] == 32)] = last_mov + 8
+    data['restimulus'][np.where(data['restimulus'] == 40)] = last_mov + 9
+    move_tmp = np.squeeze(np.array(data['restimulus']))
+    move = np.append(move, move_tmp)  # Note no fix needed for this exercise
     move = move.astype('int8')  # To minimise overhead
 
     # Label repetitions using new block style: rest-move-rest regions
@@ -645,6 +655,7 @@ def import_db3(folder_path, subject, rest_length_cap=999):
             'rep_regions': rep_regions,
             'nb_capped': nb_capped
             }
+
 
 def import_db2_acc(folder_path, subject):
     """Function for extracting acceleronmeter data from raw NinaiPro files for DB2.
