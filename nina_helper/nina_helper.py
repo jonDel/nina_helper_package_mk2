@@ -157,8 +157,6 @@ def db3_info():
     # Specific movements used
     subjects_data[0]['nb_moves'] = 40
     subjects_data[0]['move_labels'] = np.array(range(1, 41))
-    subjects_data[2]['nb_moves'] = 49
-    subjects_data[2]['move_labels'] = np.array(range(1, 50))
     subjects_data[9]['nb_moves'] = 43
     subjects_data[9]['move_labels'] = np.array(range(1, 44))
     # Labels
